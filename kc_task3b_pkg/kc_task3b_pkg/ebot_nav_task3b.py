@@ -15,20 +15,31 @@ import numpy as np
 import time
 
 GLOBAL_WAYPOINTS = [
-    (0.26, -5.0, 1.57, False),
+    (0.28, -5.95, 0.01, True),
+    (0.28, -5.95, 1.57, True),
     (0.26, -1.95, 1.57, True),     # P1 (Dock Station)
-    (0.26, 1.2, 1.57, False),
-    (-1.53, 0.6, -1.57, False),
-    (-1.53, -0.67, -1.57, True),    # P2 (Strict)
+    (0.28, 1.25, 1.57, True),
+    (0.28, 1.25, 3.13, True),
+    (-1.53, 1.25, 3.13, True),
+    (-1.53, 1.25, -1.57, True),
+    (-1.53, -5.8, -1.57, True),
+    (-1.53, -5.8, 3.13, True),
+    (-3.45, -5.8, 3.13, True),
+    (-3.45, -5.8, 1.57, True),    
+    (-3.45, 1.25, 1.57, True), 
+    (-3.45, 1.25, 0.01, True),     
+    (-1.53, 1.25, 0.01, True),
+    (-1.53, 1.25, -1.57, True),
+    (-1.53, -5.8, -1.57, True),   
     (-1.53, -6.61, -1.57, True)     # Final Stop (Strict)
 ]
 
-KP_ANGULAR = 3.0
+KP_ANGULAR = 5.0
 KI_ANGULAR = 0.0
 KD_ANGULAR = 0.05
 KP_LINEAR = 10
-WAYPOINT_SWITCH_TOLERANCE = 0.6
-STRICT_GOAL_TOLERANCE = 0.2
+WAYPOINT_SWITCH_TOLERANCE = 0.15
+STRICT_GOAL_TOLERANCE = 0.1
 YAW_TOLERANCE = math.radians(8)
 CONSTANT_TURN_SPEED = 1.0
 OBSTACLE_THRESHOLD = 0.25
@@ -54,7 +65,7 @@ class PIDController:
 
 class EbotNavigation(Node):
     def __init__(self):
-        super().__init__('ebot_nav_task2a')
+        super().__init__('ebot_nav_task3b')
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.lidar_sub = self.create_subscription(LaserScan, '/scan', self.lidar_callback, 10)
@@ -96,7 +107,10 @@ class EbotNavigation(Node):
             self.get_logger().info('Navigation RESUMED by detector.')
 
     def navigate(self):
-        if self.is_paused or not self.is_navigating or not self.odom_received or self.current_waypoint_index >= len(self.global_waypoints):
+        if self.is_paused:
+            return
+
+        if not self.is_navigating or not self.odom_received or self.current_waypoint_index >= len(self.global_waypoints):
             self.stop_robot(); return
 
         target_x, target_y, target_yaw, is_strict = self.global_waypoints[self.current_waypoint_index]

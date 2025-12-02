@@ -117,7 +117,7 @@
       <visualize>false</visualize>
       <topic>scan</topic>
       <pose>0 0 0 0 0 0</pose>
-      <update_rate>10</update_rate>
+      <update_rate>5</update_rate>
       <gz_frame_id>laser</gz_frame_id>
       <lidar>
         <scan>
@@ -153,7 +153,7 @@
     <gazebo reference="${name}">
       <sensor name="${name}" type="gpu_lidar">
         <always_on>1</always_on>
-        <update_rate>5</update_rate>
+        <update_rate>2</update_rate>
         <visualize>0</visualize>
         <topic>${name}/data</topic>
         <pose>0 0 0 0 0 0</pose>

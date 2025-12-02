@@ -65,11 +65,20 @@ class PerceptionNode(Node):
         self.create_timer(0.1, self.process_image, callback_group=self.cb_group)
         
         # ArUco setup
+        # ArUco setup
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
-        self.aruco_params = cv2.aruco.DetectorParameters()
+        if hasattr(cv2.aruco, 'DetectorParameters_create'):
+            self.aruco_params = cv2.aruco.DetectorParameters_create()
+        else:
+            self.aruco_params = cv2.aruco.DetectorParameters()
 
+        global SHOW_IMAGE
         if SHOW_IMAGE:
-            cv2.namedWindow('Object Detection', cv2.WINDOW_NORMAL)
+            try:
+                cv2.namedWindow('Object Detection', cv2.WINDOW_NORMAL)
+            except cv2.error as e:
+                self.get_logger().warn(f"Could not open display window (headless?): {e}. Disabling image visualization.")
+                SHOW_IMAGE = False
         self.get_logger().info(f"Perception node started for Team ID: {self.team_id}.")
 
     def depth_image_callback(self, data):

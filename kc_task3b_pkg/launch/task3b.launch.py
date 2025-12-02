@@ -11,8 +11,8 @@ def generate_launch_description():
         ),
         Node(
             package='kc_task3b_pkg',
-            executable='task3b_controller',
-            name='task3b_controller_node',
+            executable='ebot_nav_task3b',
+            name='ebot_nav_task3b_node',
             output='screen'
         ),
         Node(
@@ -23,8 +23,8 @@ def generate_launch_description():
         ),
         Node(
             package='kc_task3b_pkg',
-            executable='task3b_shape_detector',
-            name='task3b_shape_detector_node',
+            executable='shape_detector_task3b',
+            name='shape_detector_task3b_node',
             output='screen'
         ),
     ])

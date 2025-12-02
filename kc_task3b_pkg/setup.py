@@ -26,9 +26,9 @@ setup(
     entry_points={
         'console_scripts': [
             'task3b_perception = kc_task3b_pkg.task3b_perception:main',
-            'task3b_controller = kc_task3b_pkg.task3b_controller:main',
+            'ebot_nav_task3b = kc_task3b_pkg.ebot_nav_task3b:main',
             'task3b_manipulation = kc_task3b_pkg.task3b_manipulation:main',
-            'task3b_shape_detector = kc_task3b_pkg.task3b_shape_detector:main',
+            'shape_detector_task3b = kc_task3b_pkg.shape_detector_task3b:main',
         ],
     },
 )

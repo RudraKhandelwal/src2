@@ -64,8 +64,12 @@ class PerceptionNode(Node):
         self.create_timer(0.1, self.process_image, callback_group=self.cb_group)
         
         # ArUco setup
-        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
-        self.aruco_params = cv2.aruco.DetectorParameters()
+        try:
+            self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
+            self.aruco_params = cv2.aruco.DetectorParameters()
+        except AttributeError:
+            self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_250)
+            self.aruco_params = cv2.aruco.DetectorParameters_create()
 
         if SHOW_IMAGE:
             cv2.namedWindow('Object Detection', cv2.WINDOW_NORMAL)
@@ -127,8 +131,11 @@ class PerceptionNode(Node):
 
     def detect_aruco_markers(self, rgb_image):
         gray = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
-        detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
-        corners, ids, _ = detector.detectMarkers(gray)
+        if hasattr(cv2.aruco, 'ArucoDetector'):
+            detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
+            corners, ids, _ = detector.detectMarkers(gray)
+        else:
+            corners, ids, _ = cv2.aruco.detectMarkers(gray, self.aruco_dict, parameters=self.aruco_params)
         return corners, ids
 
     def transform_point(self, point_xyz, target_frame='base_link'):
@@ -234,13 +241,13 @@ class PerceptionNode(Node):
                         # =================================================================
                         y_offset = 0; z_offset = 0
                         grasp_pos = [base_x, base_y + y_offset, base_z + z_offset]
-                        frame_id = f'{self.team_id}_fertiliser_can'
+                        frame_id = f'{self.team_id}_fertiliser_1'
 
                         if self.publish_stable_tf(frame_id, grasp_pos):
                              self.get_logger().info(f"Published STABLE grasp point for Fertiliser: x={grasp_pos[0]:.3f}, y={grasp_pos[1]:.3f}, z={grasp_pos[2]:.3f}")
                         
                         cv2.aruco.drawDetectedMarkers(color_image, [aruco_corners[i]])
-                        cv2.putText(color_image, "fertiliser_can", (center_x, center_y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                        cv2.putText(color_image, "fertiliser_1", (center_x, center_y - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
                     break
 
         if SHOW_IMAGE:
