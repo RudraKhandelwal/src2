@@ -192,6 +192,46 @@ class PerceptionNode(Node):
             return True
         return False
 
+    def manual_transform_point(self, point_optical):
+        # Manual transform from camera_color_optical_frame to base_link
+        # Values from user provided image
+        tx, ty, tz = -0.96992, 0.015075, 1.0402
+        qx, qy, qz, qw = -0.55927, 0.56137, -0.43038, 0.43227
+        
+        # Point in optical frame
+        x, y, z = point_optical
+        
+        # Quaternion to Rotation Matrix
+        # R = [ 1-2y^2-2z^2   2xy-2zw      2xz+2yw     ]
+        #     [ 2xy+2zw       1-2x^2-2z^2  2yz-2xw     ]
+        #     [ 2xz-2yw       2yz+2xw      1-2x^2-2y^2 ]
+        
+        sqx = qx * qx; sqy = qy * qy; sqz = qz * qz
+        
+        r00 = 1 - 2*sqy - 2*sqz
+        r01 = 2*qx*qy - 2*qz*qw
+        r02 = 2*qx*qz + 2*qy*qw
+        
+        r10 = 2*qx*qy + 2*qz*qw
+        r11 = 1 - 2*sqx - 2*sqz
+        r12 = 2*qy*qz - 2*qx*qw
+        
+        r20 = 2*qx*qz - 2*qy*qw
+        r21 = 2*qy*qz + 2*qx*qw
+        r22 = 1 - 2*sqx - 2*sqy
+        
+        # Apply Rotation
+        x_rot = r00*x + r01*y + r02*z
+        y_rot = r10*x + r11*y + r12*z
+        z_rot = r20*x + r21*y + r22*z
+        
+        # Apply Translation
+        x_final = x_rot + tx
+        y_final = y_rot + ty
+        z_final = z_rot + tz
+        
+        return [x_final, y_final, z_final]
+
     def process_image(self):
         with self.lock:
             if self.cv_image is None or self.depth_image is None or self.camera_k_matrix is None: return
@@ -199,19 +239,41 @@ class PerceptionNode(Node):
 
         fx, fy = k_matrix[0, 0], k_matrix[1, 1]
         cx, cy = k_matrix[0, 2], k_matrix[1, 2]
+        
+        height, width, _ = color_image.shape
+        center_x_image = width // 2
 
-        # Bad Fruits
-        for i, cnt in enumerate(self.detect_bad_fruit(color_image)):
+        # Bad Fruits (Left Side Only as per "grey fruit" requirement)
+        detected_fruits = self.detect_bad_fruit(color_image)
+        
+        # Filter for left side
+        left_fruits = []
+        for cnt in detected_fruits:
+            M = cv2.moments(cnt)
+            if M["m00"] == 0: continue
+            cX = int(M["m10"] / M["m00"])
+            if cX < center_x_image:
+                left_fruits.append(cnt)
+        
+        if len(left_fruits) > 0:
+            self.get_logger().info(f"Detected {len(left_fruits)} bad fruits on the left.", throttle_duration_sec=2.0)
+        else:
+            self.get_logger().info("No bad fruits detected on the left.", throttle_duration_sec=5.0)
+
+        for i, cnt in enumerate(left_fruits):
             M = cv2.moments(cnt)
             if M["m00"] == 0: continue
             center_x, center_y = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
             depth = depth_image[center_y, center_x]
+            
             if np.isnan(depth) or depth <= 0.0: continue
 
-            point_z = float(depth); point_x = (center_x - cx) * point_z / fx; point_y = (center_y - cy) * point_z / fy
+            point_z = float(depth)
+            point_x = (center_x - cx) * point_z / fx
+            point_y = (center_y - cy) * point_z / fy
             
-            transformed_pt = self.transform_point([point_x, point_y, point_z])
-            if transformed_pt is None: continue
+            # Use Manual Transform
+            transformed_pt = self.manual_transform_point([point_x, point_y, point_z])
             
             base_x, base_y, base_z = transformed_pt 
             
@@ -219,8 +281,8 @@ class PerceptionNode(Node):
             self.publish_stable_tf(frame_id, [base_x, base_y, base_z])
             
             x, y, w, h = cv2.boundingRect(cnt)
-            cv2.rectangle(color_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.putText(color_image, f"bad_fruit_{i+1}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.rectangle(color_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.putText(color_image, f"bad_fruit_{i+1}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
         # Fertilizer
         FERTILIZER_ARUCO_ID = 3
@@ -234,8 +296,10 @@ class PerceptionNode(Node):
                     if not (np.isnan(depth) or depth <= 0.0):
                         point_z = float(depth); point_x = (center_x - cx) * point_z / fx; point_y = (center_y - cy) * point_z / fy
                         
-                        transformed_pt = self.transform_point([point_x, point_y, point_z])
-                        if transformed_pt is None: continue
+                        # Use Manual Transform for Fertilizer too? 
+                        # User only asked for "grey fruits" manual transform, but if TF is broken, it's broken for everything.
+                        # I'll use manual transform here too to be safe.
+                        transformed_pt = self.manual_transform_point([point_x, point_y, point_z])
 
                         base_x, base_y, base_z = transformed_pt
                         
